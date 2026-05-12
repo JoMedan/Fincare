@@ -2,6 +2,7 @@ package Fincare.FincareAppProject.Config;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
@@ -10,46 +11,71 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    private static final String SECRET_KEY = "your-256-bit-secret-key-that-is-very-secure-and-long-enough"; // 최소 256비트 길이의 키
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10시간
+    private final Key key;
+    private final long expirationMs;
+    private final long refreshExpirationMs;
 
-    private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
-
-    // 토큰 생성
-    public String generateToken(String username) {
-        return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
+    public JwtUtil(@Value("${jwt.secret}") String secret,
+                   @Value("${jwt.expiration-ms}") long expirationMs,
+                   @Value("${jwt.refresh-expiration-ms}") long refreshExpirationMs) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
+        this.expirationMs = expirationMs;
+        this.refreshExpirationMs = refreshExpirationMs;
     }
 
-    // 토큰 검증
+    public String generateToken(String username) {
+        return buildToken(username, expirationMs);
+    }
+
+    public String generateRefreshToken(String username) {
+        return buildToken(username, refreshExpirationMs);
+    }
+
     public String validateTokenAndExtractUsername(String token) {
         try {
-            Claims claims = Jwts.parserBuilder()
+            return Jwts.parserBuilder()
                     .setSigningKey(key)
                     .build()
                     .parseClaimsJws(token)
-                    .getBody();
-
-            return claims.getSubject();
+                    .getBody()
+                    .getSubject();
         } catch (JwtException | IllegalArgumentException e) {
             throw new RuntimeException("Invalid or expired JWT token");
         }
     }
 
-    // ✅ 새롭게 추가된 `validateToken` 메서드 (토큰이 유효한지만 확인)
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /** 토큰의 남은 유효 시간(ms)을 반환한다. 이미 만료된 경우 0을 반환한다. */
+    public long getRemainingExpiration(String token) {
+        try {
+            Date expiration = Jwts.parserBuilder()
                     .setSigningKey(key)
                     .build()
-                    .parseClaimsJws(token);
-            return true; // 토큰이 유효함
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getExpiration();
+            return Math.max(0, expiration.getTime() - System.currentTimeMillis());
+        } catch (ExpiredJwtException e) {
+            return 0;
         } catch (JwtException | IllegalArgumentException e) {
-            return false; // 토큰이 유효하지 않음
+            throw new RuntimeException("Invalid JWT token");
         }
+    }
+
+    private String buildToken(String username, long ttlMs) {
+        return Jwts.builder()
+                .setSubject(username)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + ttlMs))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
     }
 }
