@@ -1,15 +1,13 @@
 package Fincare.FincareAppProject.Controller;
 
 import Fincare.FincareAppProject.DTO.TransactionDTO;
-import Fincare.FincareAppProject.Entity.User;
 import Fincare.FincareAppProject.Service.TransactionService;
-import Fincare.FincareAppProject.Repository.UserRepository;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,25 +16,12 @@ import java.util.Map;
 public class TransactionController {
 
     private final TransactionService transactionService;
-    private final UserRepository userRepository;
 
-    public TransactionController(TransactionService transactionService, UserRepository userRepository) {
+    public TransactionController(TransactionService transactionService) {
         this.transactionService = transactionService;
-        this.userRepository = userRepository;
     }
 
-    // 🔹 새로운 거래 내역 생성
-//    @PostMapping
-//    public String createTransaction(
-//            @AuthenticationPrincipal String username,
-//            @RequestBody TransactionDTO transactionDTO,
-//            @RequestParam boolean useSafeBox // ✅ SafeBox 사용 여부 플래그 추가
-//    ) {
-//        transactionService.createTransaction(username, transactionDTO, useSafeBox);
-//        return "Transaction created successfully";
-//    }
-
-    // 🔹 특정 날짜 조회, 특정 날짜 사이 조회
+    @Operation(summary = "거래 내역 조회", description = "특정 날짜 또는 기간의 거래 내역을 조회합니다.")
     @GetMapping("/all")
     public List<TransactionDTO> getTransactions(
             @AuthenticationPrincipal String username,
@@ -47,33 +32,17 @@ public class TransactionController {
         return transactionService.getTransactions(username, date, startDate, endDate);
     }
 
-    // 🔹 하루 총 수입/지출 조회
+    @Operation(summary = "일별 수입/지출 조회", description = "특정 날짜의 수입, 지출 합계와 예산 현황을 조회합니다.")
     @GetMapping("/daily")
     public Map<String, Object> getDailyTotals(
             @AuthenticationPrincipal String username,
             @RequestParam(required = false) String date
     ) {
         LocalDate localDate = date != null ? LocalDate.parse(date) : LocalDate.now();
-        Map<String, Object> dailyTotals = new HashMap<>(transactionService.getDailyTotals(username, localDate));
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        // ✅ 초기 하루 예산 (변경 전)
-        double monthBudget = user.getMonth_TotalIncome() - user.getMonth_FixedExpense();
-        int daysInMonth = localDate.lengthOfMonth();
-        double dailyBudgetNoChange = monthBudget / daysInMonth;
-
-        // ✅ 실제 반영된 하루 예산 (세이프박스 적용된 값)
-        double currentDailyBudget = user.getCurrentDailyBudget();
-
-        dailyTotals.put("daily_budget_no_change", dailyBudgetNoChange);
-        dailyTotals.put("current_daily_budget", currentDailyBudget); // ✅ 최신 하루 예산 추가
-        return dailyTotals;
+        return transactionService.getDailyTotals(username, localDate);
     }
 
-
-    // 🔹 최종 하루 사용 가능 금액 계산
+    @Operation(summary = "하루 사용 가능 금액 조회", description = "수입/지출을 반영한 최종 하루 사용 가능 금액을 조회합니다.")
     @GetMapping("/daily-adjusted-budget")
     public double getDailyAdjustedBudget(
             @AuthenticationPrincipal String username,
@@ -83,63 +52,23 @@ public class TransactionController {
         return transactionService.getDailyAdjustedBudget(username, localDate);
     }
 
-    // 🔹 특정 월의 누적 지출/수입 조회
+    @Operation(summary = "월별 수입/지출 요약", description = "특정 월의 누적 지출/수입과 카테고리별 지출을 조회합니다.")
     @GetMapping("/monthly-summary")
     public Map<String, Object> getMonthlySummary(
             @AuthenticationPrincipal String username,
             @RequestParam(required = false) String date
     ) {
-        LocalDate currentDate = (date != null) ? LocalDate.parse(date) : LocalDate.now();
+        LocalDate currentDate = date != null ? LocalDate.parse(date) : LocalDate.now();
         return transactionService.getMonthlySummary(username, currentDate);
     }
 
-    // 🔹 특정 거래 내역(수입/지출) 수정
-    @PatchMapping("/update/{transactionId}")
-    public ResponseEntity<Map<String, Object>> updateTransaction(
-            @AuthenticationPrincipal String username,
-            @PathVariable Long transactionId,
-            @RequestBody TransactionDTO transactionDTO
-    ) {
-        return transactionService.updateTransaction(username, transactionId, transactionDTO);
-    }
-
-
-    // 🔹 특정 거래 내역(수입/지출) 삭제
-    @DeleteMapping("/delete/{transactionId}")
-    public String deleteTransaction(
-            @AuthenticationPrincipal String username,
-            @PathVariable Long transactionId
-    ) {
-        transactionService.deleteTransaction(username, transactionId);
-        return "Transaction deleted successfully";
-    }
-
-    @PostMapping("/no-safe-box")
-    public String createTransactionWithoutSafeBox(
-            @AuthenticationPrincipal String username,
-            @RequestBody TransactionDTO transactionDTO
-    ) {
-        transactionService.createTransactionWithoutSafeBox(username, transactionDTO);
-        return "Transaction created successfully without SafeBox";
-    }
-
-
-    @PostMapping("/use-safe-box")
-    public String createTransactionUsingSafeBox(
-            @AuthenticationPrincipal String username,
-            @RequestBody TransactionDTO transactionDTO
-    ) {
-        transactionService.createTransaction(username, transactionDTO);
-        return "Transaction created successfully using SafeBox";
-    }
-
-    // 🔹 저번달의 누적 지출/수입 조회 API
+    @Operation(summary = "지난달 수입/지출 요약", description = "지난달의 누적 지출/수입과 카테고리별 지출을 조회합니다.")
     @GetMapping("/last-month-summary")
     public Map<String, Object> getLastMonthSummary(@AuthenticationPrincipal String username) {
         return transactionService.getLastMonthSummary(username);
     }
 
-    // 🔹 특정 월의 지출/수입 내역 조회 API
+    @Operation(summary = "월별 거래 내역 조회", description = "특정 연월의 모든 거래 내역을 조회합니다.")
     @GetMapping("/monthly-details")
     public Map<String, Object> getMonthlyDetails(
             @AuthenticationPrincipal String username,
@@ -149,16 +78,43 @@ public class TransactionController {
         return transactionService.getMonthlyDetails(username, year, month);
     }
 
-    @GetMapping("budget-info")
-    public Map<String,Object> getUserBudgetInfo(@AuthenticationPrincipal String username){
-        User user= userRepository.findByUsername(username).orElseThrow(()->new IllegalArgumentException("사용자를 찾을 수 없음"));
-        return Map.of(
-                "한달 예산", user.getMonth_TotalIncome(),
-                "고정 지출",user.getMonth_FixedExpense()
-        );
+    @Operation(summary = "거래 내역 수정", description = "특정 거래 내역의 금액, 카테고리 등을 수정합니다.")
+    @PatchMapping("/update/{transactionId}")
+    public ResponseEntity<Map<String, Object>> updateTransaction(
+            @AuthenticationPrincipal String username,
+            @PathVariable Long transactionId,
+            @RequestBody TransactionDTO transactionDTO
+    ) {
+        return transactionService.updateTransaction(username, transactionId, transactionDTO);
     }
 
+    @Operation(summary = "거래 내역 삭제", description = "특정 거래 내역을 삭제합니다.")
+    @DeleteMapping("/delete/{transactionId}")
+    public ResponseEntity<Map<String, String>> deleteTransaction(
+            @AuthenticationPrincipal String username,
+            @PathVariable Long transactionId
+    ) {
+        transactionService.deleteTransaction(username, transactionId);
+        return ResponseEntity.ok(Map.of("message", "거래 내역이 삭제되었습니다."));
+    }
 
+    @Operation(summary = "지출 등록 (세이프박스 미사용)", description = "세이프박스를 사용하지 않고 지출/수입을 등록합니다.")
+    @PostMapping("/no-safe-box")
+    public ResponseEntity<Map<String, String>> createTransactionWithoutSafeBox(
+            @AuthenticationPrincipal String username,
+            @RequestBody TransactionDTO transactionDTO
+    ) {
+        transactionService.createTransactionWithoutSafeBox(username, transactionDTO);
+        return ResponseEntity.ok(Map.of("message", "거래 내역이 등록되었습니다."));
+    }
 
-
+    @Operation(summary = "지출 등록 (세이프박스 사용)", description = "세이프박스를 사용하여 지출/수입을 등록합니다.")
+    @PostMapping("/use-safe-box")
+    public ResponseEntity<Map<String, String>> createTransactionUsingSafeBox(
+            @AuthenticationPrincipal String username,
+            @RequestBody TransactionDTO transactionDTO
+    ) {
+        transactionService.createTransaction(username, transactionDTO);
+        return ResponseEntity.ok(Map.of("message", "거래 내역이 등록되었습니다."));
+    }
 }

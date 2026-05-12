@@ -5,18 +5,6 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
-
 ### IntelliJ IDEA ###
 .idea
 *.iws
@@ -26,43 +14,15 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-
-### VS Code ###
-.vscode/
-
-# Gradle
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-
-# IntelliJ
-.idea
-*.iml
-
-# OS
+### OS ###
 .DS_Store
 
-# Logs
+### Logs ###
 *.log
 
-# 기타
-out/
-src/main/resources/application.properties
-
-# ✅ 민감 정보 전면 차단
-application.properties
-application.yml
+### 민감 정보 ###
 .env
 application-secret.yml
 
-/src/main/resources/application.properties
-
-
-
-
+### 빌드 산출물 ###
+*.zip
