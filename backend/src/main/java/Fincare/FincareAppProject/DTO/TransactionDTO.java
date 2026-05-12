@@ -1,65 +1,34 @@
 package Fincare.FincareAppProject.DTO;
 
+import Fincare.FincareAppProject.Enums.TransactionType;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class TransactionDTO {
 
     private Long id;
-    private String type;
+
+    @NotNull(message = "거래 유형은 필수입니다.")
+    private TransactionType type;
+
+    @NotNull(message = "카테고리는 필수입니다.")
     private String category;
+
+    @Positive(message = "금액은 0보다 커야 합니다.")
     private double amount;
+
     @JsonFormat(pattern = "yyyy-MM-dd")
+    @NotNull(message = "날짜는 필수입니다.")
     private LocalDate date;
-
-    public TransactionDTO(Long id, String type, String category, double amount, LocalDate date) {
-        this.id = id;
-        this.type = type;
-        this.category = category;
-        this.amount = amount;
-        this.date = date;
-    }
-
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public double getAmount() {
-        return amount;
-    }
-
-    public void setAmount(double amount) {
-        this.amount = amount;
-    }
-
-    public LocalDate getDate() {
-        return date;
-    }
-
-    public void setDate(LocalDate date) {
-        this.date = date;
-    }
 }
